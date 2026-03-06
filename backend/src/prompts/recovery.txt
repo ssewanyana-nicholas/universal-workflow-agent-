@@ -1,0 +1,14 @@
+The previous action failed. To recover:
+
+1. Take a screenshot to see the current page state
+2. Analyze what went wrong
+3. Try an alternative approach to accomplish the same goal
+4. If the page didn't load correctly, try navigating again
+5. If an element is not found, try using a different selector or wait for it to load
+
+Common recovery strategies:
+- Use waitForSelector before interacting with elements
+- Use more specific CSS selectors
+- Handle popups or modals that might be blocking
+- Scroll to make elements visible
+- Refresh the page if it's in an unexpected state

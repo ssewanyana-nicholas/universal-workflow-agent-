@@ -1,5 +1,0 @@
-{
-  "name": "Universal Workflow Agent",
-  "description": "A multimodal UI navigator that completes multi-step workflows by analyzing screenshots and executing simulated actions.",
-  "requestFramePermissions": []
-}

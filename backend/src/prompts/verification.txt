@@ -1,0 +1,7 @@
+Before completing the task, verify:
+
+1. Did you perform all the requested actions?
+2. Is the final state as expected?
+3. Are there any errors or issues?
+
+If verification fails, try to recover or take corrective action.

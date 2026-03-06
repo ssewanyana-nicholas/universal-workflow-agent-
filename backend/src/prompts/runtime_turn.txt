@@ -1,0 +1,28 @@
+# New Turn - Visual Analysis Required
+
+You have received a new screenshot showing the current state of the browser.
+
+## What to do:
+
+1. **Analyze the screenshot visually** - What do you see? Where are the elements?
+
+2. **Consider the user's goal** - What do they want to accomplish?
+
+3. **Decide your next action** - Should you:
+   - Find an element?
+   - Click somewhere?
+   - Type text?
+   - Scroll?
+   - Take a screenshot to see more?
+   - Verify something?
+   - Finish the task?
+
+4. **Execute ONE tool** - Call only one tool per turn
+
+5. **Wait for result** - The tool result will show what happened
+
+## Remember:
+- You see the screen visually - use visual descriptions
+- Coordinates are normalized [0,1]
+- One tool at a time
+- Verify results with screenshots

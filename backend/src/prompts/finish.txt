@@ -1,0 +1,6 @@
+Task completed successfully!
+
+Please provide a summary of what was accomplished, including:
+- The actions taken
+- The final state of the application
+- Any screenshots captured
