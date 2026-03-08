@@ -71,9 +71,12 @@ export async function executeTool(toolCall, sessionId, page = null) {
         return { ok: false, error: 'Failed to capture screenshot' };
       }
 
+      // Handle both 'query' and 'description' argument names
+      const query = args.query || args.description || args.text || '';
+      
       const verification = await verifyTarget({
         screenshotBase64,
-        query: args.query,
+        query: query,
         must_include_text: args.must_include_text,
         region: args.region,
       });
@@ -86,16 +89,17 @@ export async function executeTool(toolCall, sessionId, page = null) {
       }
 
       // Format for frontend overlay (PROMPT M)
+      // Always return ok: true - the verification ran successfully, found/not found is a valid result
       const result = {
-        ok: verification.found,
+        ok: true, // Always success - verification completed
+        found: verification.exists,
+        description: verification.description,
         evidence: {
           screenshot_filename,
           region: verification.region,
-          textMatched: verification.found,
-          reason: verification.reason,
+          textMatched: verification.exists,
+          reason: verification.description,
         },
-        found: verification.found,
-        reason: verification.reason,
       };
 
       // Save to history
@@ -109,6 +113,14 @@ export async function executeTool(toolCall, sessionId, page = null) {
       }
 
       return result;
+    }
+
+    // Handle wait tool
+    if (name === 'wait') {
+      const ms = args.ms || 1000;
+      await new Promise(resolve => setTimeout(resolve, ms));
+      logger.info({ ms }, 'Wait completed');
+      return { ok: true, action: 'wait', ms };
     }
 
     // Handle file upload (PROMPT L)

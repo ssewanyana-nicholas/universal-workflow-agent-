@@ -55,18 +55,30 @@ Return a JSON array with found elements. Use this exact schema:
 
 If no elements match, return an empty array [].`;
 
-  const result = await generativeModel.generateContent([
-    { text: prompt },
-    {
-      inlineData: {
-        mimeType: 'image/png',
-        data: screenshotBase64,
-      },
-    },
-  ]);
+  const result = await generativeModel.generateContent({
+    contents: [{
+      role: 'user',
+      parts: [
+        { text: prompt },
+        {
+          inlineData: {
+            mimeType: 'image/png',
+            data: screenshotBase64,
+          },
+        },
+      ],
+    }],
+  });
 
-  const response = result.response;
-  const text = response.text();
+  // Handle different response formats
+  let text = '';
+  if (typeof result.response === 'string') {
+    text = result.response;
+  } else if (typeof result.response?.text === 'function') {
+    text = result.response.text();
+  } else if (result.response?.candidates?.[0]?.content?.parts) {
+    text = result.response.candidates[0].content.parts.map((p) => p.text || '').join('');
+  }
 
   // Parse JSON from response
   try {
@@ -109,18 +121,30 @@ Return a JSON object with this schema:
   "text_found": "any text content visible near or in the element"
 }`;
 
-  const result = await generativeModel.generateContent([
-    { text: prompt },
-    {
-      inlineData: {
-        mimeType: 'image/png',
-        data: screenshotBase64,
-      },
-    },
-  ]);
+  const result = await generativeModel.generateContent({
+    contents: [{
+      role: 'user',
+      parts: [
+        { text: prompt },
+        {
+          inlineData: {
+            mimeType: 'image/png',
+            data: screenshotBase64,
+          },
+        },
+      ],
+    }],
+  });
 
-  const response = result.response;
-  const text = response.text();
+  // Handle different response formats
+  let text = '';
+  if (typeof result.response === 'string') {
+    text = result.response;
+  } else if (typeof result.response?.text === 'function') {
+    text = result.response.text();
+  } else if (result.response?.candidates?.[0]?.content?.parts) {
+    text = result.response.candidates[0].content.parts.map((p) => p.text || '').join('');
+  }
 
   try {
     const jsonMatch = text.match(/\{[\s\S]*\}/);

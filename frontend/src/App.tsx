@@ -596,21 +596,56 @@ export default function App() {
         }
       }
 
-      const newStep: Step = {
-        id: Math.random().toString(36).substr(2, 9),
-        goal,
-        screenshot: screenshotToUse
-          ? `data:image/jpeg;base64,${screenshotToUse}`
-          : currentScreenshot || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect fill="%23333" width="400" height="300"/><text fill="white" x="50%" y="50%" text-anchor="middle">No screenshot</text></svg>',
-        analysis: analysisText,
-        actions,
-        verification: result.final?.status || "completed",
-        timestamp: Date.now(),
-      };
+      // Add each backend step as a separate step in the UI for timeline view
+      // This shows the progression of screenshots as the agent works
+      if (result.steps && result.steps.length > 0) {
+        for (let i = 0; i < result.steps.length; i++) {
+          const stepData = result.steps[i];
+          const stepScreenshot = stepData.backendScreenshot || stepData.screenshot;
+          const isLastStep = i === result.steps.length - 1;
+          
+          // Determine action description from tool call
+          const actionDesc = stepData.tool 
+            ? `${stepData.tool}(${JSON.stringify(stepData.args || {})})`
+            : stepData.result?.text?.substring(0, 100) || "Processing";
+          
+          const stepLabel = isLastStep 
+            ? `✅ FINAL RESULT - Step ${i + 1}: ${stepData.tool || 'complete'}`
+            : `Step ${i + 1}: ${stepData.tool || 'analysis'}`;
+          
+          const newStep: Step = {
+            id: Math.random().toString(36).substr(2, 9),
+            goal: stepLabel,
+            screenshot: stepScreenshot
+              ? `data:image/jpeg;base64,${stepScreenshot}`
+              : currentScreenshot || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect fill="%23333" width="400" height="300"/><text fill="white" x="50%" y="50%" text-anchor="middle">No screenshot</text></svg>',
+            analysis: actionDesc,
+            actions: stepData.tool ? [{ type: stepData.tool, description: actionDesc, args: stepData.args || {}, timestamp: Date.now(), status: 'completed' as const }] : [],
+            verification: stepData.verification || "completed",
+            timestamp: Date.now() - ((result.steps.length - i) * 1000),
+          };
+          
+          setSteps((prev) => [...prev, newStep]);
+          addLog(`${stepLabel} - ${actionDesc.substring(0, 50)}`, isLastStep ? "success" : "info");
+        }
+      } else {
+        // Fallback for single step if no backend steps returned
+        const newStep: Step = {
+          id: Math.random().toString(36).substr(2, 9),
+          goal: "✅ FINAL RESULT",
+          screenshot: screenshotToUse
+            ? `data:image/jpeg;base64,${screenshotToUse}`
+            : currentScreenshot || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect fill="%23333" width="400" height="300"/><text fill="white" x="50%" y="50%" text-anchor="middle">No screenshot</text></svg>',
+          analysis: analysisText,
+          actions,
+          verification: result.final?.status || "completed",
+          timestamp: Date.now(),
+        };
+        setSteps((prev) => [...prev, newStep]);
+        addLog("✅ FINAL RESULT", "success");
+      }
 
-      setSteps((prev) => [...prev, newStep]);
-
-      // Update currentScreenshot to show in main viewport
+      // Update currentScreenshot to show in main viewport - use FINAL (last) screenshot
       if (screenshotToUse) {
         console.log('Setting screenshot, length:', screenshotToUse.length);
         setCurrentScreenshot(`data:image/jpeg;base64,${screenshotToUse}`);

@@ -3,6 +3,15 @@ import { logger } from './logger.js';
 import { newPage } from './browser.js';
 import { executeTool, parseToolCalls, extractText } from './tools/executor.js';
 import { appendHistory } from './util/state.js';
+import { VertexAI } from '@google-cloud/vertexai';
+import { config } from './config.js';
+
+// Initialize Vertex AI for verification
+const vertexAI = new VertexAI({
+    project: config.projectId,
+    location: config.location,
+});
+const model = 'gemini-2.0-flash';
 
 // PROMPT O: Reliability - timeouts and retries
 const TOOL_TIMEOUT_MS = parseInt(process.env.TOOL_TIMEOUT_MS || '25000');
@@ -140,8 +149,24 @@ export class Orchestrator {
         const viewport = this.sessionState.viewport_size || { width: 1280, height: 720 };
         this.page = await newPage(viewport);
 
-        // Navigate to the URL from sessionState if provided
-        if (this.sessionState.current_url) {
+        // PRIORITIZE: Use uploaded screenshot if provided
+        // The screenshot is the starting point - agent analyzes it to understand the interface
+        if (screenshotBase64) {
+            this.screenshot = screenshotBase64;
+            logger.info({ screenshotLength: this.screenshot?.length }, 'Using uploaded screenshot as starting point');
+            
+            // If URL is also provided, navigate to it after screenshot is set
+            // The agent will see the uploaded screenshot first, then can navigate if needed
+            if (this.sessionState.current_url) {
+                logger.info({ url: this.sessionState.current_url }, 'Navigating to URL after screenshot analysis');
+                await this.page.goto(this.sessionState.current_url, {
+                    waitUntil: 'networkidle',
+                    timeout: 30000
+                });
+                await this.page.waitForTimeout(2000);
+            }
+        } else if (this.sessionState.current_url) {
+            // No screenshot provided, so navigate to URL and capture screenshot
             logger.info({ url: this.sessionState.current_url }, 'Navigating to URL');
             await this.page.goto(this.sessionState.current_url, {
                 waitUntil: 'networkidle',
@@ -149,40 +174,25 @@ export class Orchestrator {
             });
             // Wait for page to stabilize
             await this.page.waitForTimeout(2000);
-        } else {
-            logger.warn({ sessionState: this.sessionState }, 'No current_url in sessionState - will start with blank page');
-        }
-
-        // PRIORITIZE: Use uploaded screenshot if provided, otherwise capture our own
-        if (screenshotBase64) {
-            // Use the user-provided screenshot
-            this.screenshot = screenshotBase64;
-            logger.info({ screenshotLength: this.screenshot?.length }, 'Using uploaded screenshot');
-        } else {
-            // Capture our own screenshot after navigation (JPEG for smaller size)
+            
+            // Capture screenshot after navigation
             try {
-                // First check if page has any content
                 const title = await this.page.title().catch(() => 'unknown');
                 const url = await this.page.url().catch(() => 'unknown');
                 logger.info({ url, title }, 'Page state before screenshot');
 
                 const screenshotBuffer = await this.page.screenshot({
                     type: 'jpeg',
-                    quality: 80,  // Higher quality for better readability
+                    quality: 80,
                     fullPage: false
                 });
                 this.screenshot = screenshotBuffer.toString('base64');
                 logger.info({ screenshotLength: this.screenshot?.length }, 'Initial screenshot captured');
-
-                // Verify screenshot has content
-                if (this.screenshot && this.screenshot.length > 1000) {
-                    logger.info('Screenshot has content');
-                } else {
-                    logger.warn({ length: this.screenshot?.length }, 'Screenshot might be empty or too small');
-                }
             } catch (screenshotErr) {
                 logger.error({ error: screenshotErr.message }, 'Failed to capture initial screenshot');
             }
+        } else {
+            logger.warn({ sessionState: this.sessionState }, 'No screenshot or URL provided - starting with blank page');
         }
     }
 
@@ -331,6 +341,35 @@ export class Orchestrator {
                 // One tool per turn - take first one
                 const toolCall = toolCalls[0];
 
+                // DISPATCHER GATE: Block finish_with_report if verification fails
+                if (toolCall.name === 'finish_with_report') {
+                    // Verify the task is actually complete
+                    const verificationResult = await this.verifyTaskCompletion(userPrompt);
+                    
+                    logger.info({ 
+                        sessionId: this.sessionId, 
+                        verification: verificationResult 
+                    }, 'Verification result before finish');
+                    
+                    if (!verificationResult.verified) {
+                        // Block finish - add verification failure to messages
+                        this.messages.push({
+                            role: 'user',
+                            content: `VERIFICATION FAILED: ${verificationResult.reason}. Please continue working on the task.`,
+                        });
+                        logger.warn({ 
+                            sessionId: this.sessionId, 
+                            reason: verificationResult.reason 
+                        }, 'Blocked finish_with_report - verification failed');
+                        continue; // Continue to next turn
+                    }
+                    
+                    logger.info({ 
+                        sessionId: this.sessionId, 
+                        status: verificationResult.verified 
+                    }, 'Verification passed - task completed');
+                }
+
                 logger.info({ tool: toolCall.name, args: toolCall.args, sessionId: this.sessionId }, 'Executing tool');
 
                 const result = await executeTool(toolCall, this.sessionId, this.page);
@@ -361,6 +400,64 @@ export class Orchestrator {
 
         const finalResponse = this.messages[this.messages.length - 1].content;
         return finalResponse;
+    }
+
+    // Verify task completion - check that expected content is visible on page
+    async verifyTaskCompletion(userPrompt) {
+        try {
+            // Take a fresh screenshot of the current page
+            const screenshotBuffer = await this.page.screenshot({ 
+                type: 'jpeg', 
+                quality: 80 
+            });
+            const screenshot = screenshotBuffer.toString('base64');
+            
+            // Use Gemini to verify the task is complete
+            const generativeModel = vertexAI.preview.getGenerativeModel({
+                model: model,
+                systemInstruction: {
+                    role: 'system',
+                    parts: [{ text: 'You are a verification assistant. Check if the user\'s task goal has been achieved based on the screenshot.' }],
+                },
+                generationConfig: {
+                    temperature: 0.1,
+                },
+            });
+
+            const result = await generativeModel.generateContent({
+                contents: [{
+                    role: 'user',
+                    parts: [
+                        { text: `Verify if this task has been completed: "${userPrompt}". Look for evidence in the screenshot that the task is done. Respond with JSON: {"verified": true/false, "reason": "explanation"}` },
+                        { inlineData: { mimeType: 'image/jpeg', data: screenshot } }
+                    ]
+                }]
+            });
+
+            const responseText = result.response?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            
+            // Try to parse JSON from response
+            try {
+                const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    const parsed = JSON.parse(jsonMatch[0]);
+                    return { verified: parsed.verified === true, reason: parsed.reason || 'Verified' };
+                }
+            } catch (e) {
+                // If parsing fails, check for keywords
+            }
+            
+            // Fallback: check for positive indicators
+            const lowerResponse = responseText.toLowerCase();
+            if (lowerResponse.includes('verified') && (lowerResponse.includes('true') || lowerResponse.includes('yes'))) {
+                return { verified: true, reason: 'Gemini confirmed completion' };
+            }
+            
+            return { verified: false, reason: 'Could not verify completion' };
+        } catch (error) {
+            logger.error({ error: error.message }, 'Verification error');
+            return { verified: false, reason: `Verification error: ${error.message}` };
+        }
     }
 
     async cleanup() {
