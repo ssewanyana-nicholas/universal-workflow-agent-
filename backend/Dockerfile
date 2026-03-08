@@ -33,18 +33,13 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies including Playwright
-RUN npm ci && npx playwright install --with-deps chromium
+RUN npm install && npx playwright install chromium chromium-headless-shell
 
 # Copy source code
 COPY src ./src
 
-# Create non-root user (use UID 1001 to avoid conflict)
-RUN id -u appuser 2>/dev/null || useradd -m -u 1001 appuser
-RUN chown -R appuser:appuser /app
-USER appuser
-
 # Expose port
 EXPOSE 8080
 
-# Start the server
+# Start the server (run as root for now to access Playwright browsers)
 CMD ["node", "src/server.js"]
