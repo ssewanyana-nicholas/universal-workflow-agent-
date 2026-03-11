@@ -6,6 +6,112 @@ A powerful AI agent that becomes your hands on screen. It observes the browser d
 
 ---
 
+## 🎯 Competition Submission
+
+### 📃 Text Description
+
+UI Navigator is a Visual UI Understanding & Interaction Agent that uses Gemini 2.0 Flash multimodal vision to interpret screenshots and execute browser actions via Playwright. The agent "sees" the browser display, understands visual elements without DOM access, and performs actions based on user intent - essentially becoming "hands on screen" for the user.
+
+**Key Features:**
+- Visual UI Understanding via Gemini 2.0 Flash
+- Executable Actions (click, type, scroll, navigate)
+- Multiple Modes: Headless, CDP (control your browser), Analysis-only
+- Session Management with Firestore persistence
+- Screenshot Storage in Cloud Storage
+
+**Technologies Used:**
+- **AI**: Gemini 2.0 Flash via Google GenAI SDK
+- **Frontend**: React 19 + Vite + Tailwind CSS
+- **Backend**: Node.js + Express + Playwright
+- **Cloud**: Vertex AI, Cloud Run, Cloud Storage, Firestore
+
+### 👨‍💻 Code Repository
+
+**Public URL**: https://github.com/ssewanyana-nicholas/universal-workflow-agent-
+
+### 🖥️ Proof of Google Cloud Deployment
+
+**Live Demo:**
+- **Frontend**: https://storage.googleapis.com/my-universal-workflow-agent-frontend/index.html
+- **Backend API**: https://workflow-agent-backend-608289224046.us-central1.run.app
+- **Health Check**: https://workflow-agent-backend-608289224046.us-central1.run.app/health
+
+**Automated Deployment Script:**
+The project includes a [`deploy.sh`](deploy.sh) script that automates the entire deployment process:
+
+```bash
+# Deploy everything with one command
+./deploy.sh
+```
+
+The script:
+1. Builds and deploys backend to Cloud Run (source-based, no Docker needed)
+2. Builds frontend with Vite
+3. Syncs frontend to Cloud Storage bucket
+4. Configures static website hosting
+5. Sets proper IAM permissions for public access
+
+**GCP Services Used:**
+- ✅ Vertex AI (Gemini 2.0 Flash)
+- ✅ Cloud Run (Backend deployment)
+- ✅ Cloud Storage (Static website hosting + screenshots)
+- ✅ Firestore (Session history)
+- ✅ Cloud Logging
+
+**GCP Console Proof:**
+```
+gcloud run services list --region us-central1
+SERVICE                  REGION       URL
+workflow-agent-backend   us-central1  https://workflow-agent-backend-608289224046.us-central1.run.app
+```
+
+---
+
+## 🏗️ Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Frontend (React + Vite)                  │
+│  ┌─────────────┐  ┌──────────────┐  ┌───────────────┐       │
+│  │   Screenshot│  │   Session    │  │    Action     │       │
+│  │    Upload   │  │    State     │  │    History    │       │
+│  └─────────────┘  └──────────────┘  └───────────────┘       │
+│         │                  │                   │            │
+│         └──────────────────┼───────────────────┘            │
+│                            │                                │
+│                     POST /agent/run                         │
+│                            │                                │
+└────────────────────────────┼────────────────────────────────┘
+                             │ HTTPS
+                             ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  Backend (Express + Node.js)                │
+│                   (Deployed on Cloud Run)                   │
+│                                                             │
+│  ┌──────────────┐  ┌──────────────────┐  ┌─────────────┐    │
+│  │  Orchestrator│──│  Gemini 2.0 Flash│──│   Vision    │    │
+│  │    (Loop)    │  │    (Vertex AI)   │  │  Processing │    │
+│  └──────────────┘  └──────────────────┘  └─────────────┘    │
+│         │                                                   │
+│  ┌──────▼──────────────────────────────────────────┐        │
+│  │           Playwright Browser                    │        │
+│  │  - Headless Chrome                              │        │
+│  │  - CDP Support (control your browser)           │        │
+│  └─────────────────────────────────────────────────┘        │
+│                            │                                │
+└────────────────────────────┼────────────────────────────────┘
+                             │
+        ┌────────────────────┼────────────────────┐
+        │                    │                    │
+        ▼                    ▼                    ▼
+┌──────────────┐    ┌──────────────┐    ┌──────────────┐
+│   Vertex AI  │    │  Firestore   │    │Cloud Storage │
+│   (Gemini)   │    │  (Sessions)  │    │ (Screenshots)│
+└──────────────┘    └──────────────┘    └──────────────┘
+```
+
+---
+
 ## ✅ Requirements Compliance
 
 ### Mandatory Tech Requirements
@@ -28,119 +134,53 @@ A powerful AI agent that becomes your hands on screen. It observes the browser d
 | **Firestore** | ✅ | Session history storage ([`backend/src/util/state.js`](backend/src/util/state.js)) |
 | **Cloud Storage** | ✅ | Screenshot storage ([`backend/src/util/storage.js`](backend/src/util/storage.js)) |
 
-### Agent Features
-
-| Feature | Status |
-|---------|--------|
-| Visual UI Understanding | ✅ |
-| Screenshot Interpretation | ✅ |
-| Element Detection | ✅ |
-| Action Execution | ✅ |
-| Multi-step Workflows | ✅ |
-| Analysis-Only Mode | ✅ |
-| CDP Browser Control | ✅ |
-| Headed Browser (visible) | ✅ |
-| ADK-style Tool Execution | ✅ |
-
 ---
 
-## 🚀 How to Use UI Navigator
-
-### Step 1: Configure Environment
-
-Copy the sample environment file and configure:
-```bash
-cp backend/.env.sample backend/.env
-# Edit backend/.env with your Google Cloud project settings
-```
-
-### Step 2: Start the Backend
-
-```bash
-cd backend
-npm install  # Only needed once
-npm start
-```
-
-The backend runs on **http://localhost:8080**
-
-### Step 3: Start the Frontend
-
-```bash
-cd frontend
-npm install  # Only needed once
-npm run dev
-```
-
-The frontend runs on **http://localhost:3000**
-
-### Step 3: Configure Your Session
-
-In the frontend at http://localhost:3000:
-
-1. **URL**: Enter the website you want the agent to work with (e.g., `https://www.google.com`)
-2. **Task**: Describe what you want done (e.g., "Search for weather in Nairobi")
-3. **Viewport** (optional): Set browser size - default is 1280x720
-4. **Browser**: Choose "headless" or " CDP" (see CDP section below)
-
-### Step 4: Run the Agent
-
-Click **"Start Agent"** to begin. The agent will:
-
-1. Open the browser and navigate to the URL
-2. Take a screenshot and send it to Gemini
-3. Gemini "sees" the screenshot and decides what action to take
-4. The agent executes the action (click, type, scroll, etc.)
-5. Repeat until the task is complete
-
-### Understanding the Display
-
-| Panel | What it shows |
-|-------|---------------|
-| **Backend Browser** | Shows what the agent sees (screenshot after each action) |
-| **Action History** | Log of all actions taken (clicks, typing, navigation) |
-| **Current State** | Current URL, viewport, and session info |
-
-### Mode: Analysis Only
-
-Toggle **"Analysis Only"** to have the agent analyze the page without taking any actions. Useful for:
-- Understanding what the agent sees
-- Debugging
-- Just getting information from a page
-
-### Mode: CDP (Control Your Browser)
-
-For actions on sites where you're already logged in:
-
-```bash
-# 1. Close all Chrome windows
-
-# 2. Start Chrome with remote debugging
-"C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222
-
-# 3. In backend/.env, add:
-USE_CDP=true
-CDP_URL=http://localhost:9222
-
-# 4. Restart the backend
-```
-
-Then select "CDP" as the browser type in the frontend.
-
----
-
-## Quick Start
+## 🚀 Spin-Up Instructions (For Judges)
 
 ### Prerequisites
 - Node.js 20+
 - Google Cloud Project with Vertex AI enabled
+- gcloud CLI installed
 
-### Installation
+### Option 1: Automated Deployment (One Command)
 
 ```bash
-# Install dependencies
+# Clone and deploy everything with one command
+git clone https://github.com/ssewanyana-nicholas/universal-workflow-agent-
+cd universal-workflow-agent-
+./deploy.sh
+```
+
+The deploy.sh script will:
+1. Build and deploy backend to Cloud Run
+2. Build frontend with Vite
+3. Sync frontend to Cloud Storage
+4. Configure static website hosting
+5. Output the final URLs
+
+### Option 2: Manual Local Development
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/ssewanyana-nicholas/universal-workflow-agent-
+cd universal-workflow-agent-
+
+# 2. Configure backend
+cp backend/.env.sample backend/.env
+# Edit backend/.env with your Google Cloud project settings
+
+# 3. Install dependencies
 cd backend && npm install
 cd ../frontend && npm install
+
+# 4. Start the backend
+cd backend && npm start
+# Backend runs on http://localhost:8080
+
+# 5. Start the frontend (in another terminal)
+cd frontend && npm run dev
+# Frontend runs on http://localhost:3000
 ```
 
 ### Configuration
@@ -154,155 +194,71 @@ FIRESTORE_COLLECTION=uia_sessions
 PORT=8080
 ```
 
-### Running
+### Deploy to Google Cloud
 
 ```bash
-# Terminal 1 - Backend
-cd backend && npm start
+# Deploy backend to Cloud Run
+cd backend
+gcloud run deploy workflow-agent-backend \
+  --source . \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --set-env-vars GOOGLE_CLOUD_PROJECT=your-project-id
 
-# Terminal 2 - Frontend  
-cd frontend && npm run dev
-```
-
-Open http://localhost:3000
-
----
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Frontend (React)                          │
-│  ┌─────────────┐  ┌──────────────┐  ┌───────────────┐     │
-│  │ Screenshot  │  │  Session    │  │   Action     │     │
-│  │ Upload      │  │  State      │  │   History    │     │
-│  └─────────────┘  └──────────────┘  └───────────────┘     │
-└────────────────────────┬────────────────────────────────────┘
-                         │
-                    POST /agent/run
-                         │
-┌────────────────────────▼────────────────────────────────────┐
-│                  Backend (Express + Node.js)                 │
-│                                                              │
-│  ┌──────────────┐  ┌──────────────────┐  ┌─────────────┐  │
-│  │ Orchestrator │──│ Gemini 2.0 Flash │──│   Vision   │  │
-│  │   (Loop)    │  │  (Vertex AI)     │  │  Processing │  │
-│  └──────────────┘  └──────────────────┘  └─────────────┘  │
-│         │                                                  │
-│  ┌──────▼──────────────────────────────────────────┐     │
-│  │           Playwright Browser                      │     │
-│  │  - Headless Chrome                               │     │
-│  │  - CDP Support (control your browser)            │     │
-│  └──────────────────────────────────────────────────┘     │
-│                                                              │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │  Google Cloud Services Used:                        │   │
-│  │  - Vertex AI (Gemini 2.0 Flash)                    │   │
-│  │  - Firestore (session history)                      │   │
-│  │  - Cloud Storage (screenshots)                      │   │
-│  │  - Cloud Run (deployment)                          │   │
-│  └─────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
+# Build and sync frontend to Cloud Storage
+cd frontend
+npm run build
+gsutil -m rsync -R dist gs://your-frontend-bucket
 ```
 
 ---
 
-## API Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/agent/run` | POST | Run full workflow automation |
-| `/agent/analyze` | POST | Analysis-only mode |
-| `/agent/step` | POST | Single step execution |
-| `/health` | GET | Health check |
-| `/proof/gcp` | GET | GCP configuration proof |
-
----
-
-## Tools Available
-
-The agent uses Gemini to understand screenshots and outputs these executable actions:
-
-| Tool | Description |
-|------|-------------|
-| `find_element` | Find UI elements by visual description |
-| `click` | Click at normalized coordinates |
-| `type_text` | Type text into focused element |
-| `scroll` | Scroll by normalized delta |
-| `open_url` | Navigate to a URL |
-| `take_screenshot` | Capture current view |
-| `verify_element` | Verify element exists |
-| `finish_with_report` | Complete with summary |
-
----
-
-## CDP Mode (Control Your Browser)
-
-For full browser control with your logged-in sessions:
-
-```bash
-# 1. Start Chrome with debugging
-"C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222
-
-# 2. Enable CDP in backend/.env
-USE_CDP=true
-CDP_URL=http://localhost:9222
-
-# 3. Restart backend
-```
-
----
-
-## 💡 Example Tasks to Try
-
-### Beginner Examples
+## 💡 Example Tasks
 
 | Task | What the agent does |
 |------|---------------------|
-| "Go to google.com and search for 'AI news'" | Opens Google → Types query → Shows results |
-| "Go to wikipedia.org and find information about Kenya" | Opens Wikipedia → Navigates to Kenya page |
-| "Go to github.com and click the sign in button" | Opens GitHub → Locates and clicks Sign In |
-
-### Intermediate Examples
-
-| Task | What the agent does |
-|------|---------------------|
-| "Go to gmail.com and check for unread emails" | Opens Gmail → Analyzes inbox → Reports count |
-| "Go to youtube.com and search for a tutorial on React" | Opens YouTube → Types search → Shows results |
-| "Go to amazon.com and find the cheapest headphones" | Opens Amazon → Searches → Sorts by price |
-
-### Advanced Examples (CDP Mode)
-
-| Task | What the agent does |
-|------|---------------------|
-| "Send an email in Gmail" | (Requires CDP with logged-in session) |
-| "Post a tweet on Twitter" | (Requires CDP with logged-in session) |
-| "Check your bank balance" | (Requires CDP with logged-in session) |
+| "Search for the president of Kenya" | Opens Google → Types query → Shows results |
+| "Find weather in Nairobi" | Navigates to weather site → Reports weather |
+| "Go to wikipedia.org and find info about AI" | Opens Wikipedia → Navigates to AI page |
 
 ---
 
-## 🔧 Troubleshooting
+## 📁 Project Structure
 
-### "Agent not calling tools"
-- Check that the backend is running
-- Check the console for errors
-- Try a simpler task first
-
-### "Screenshot not loading"
-- Ensure Playwright/Chrome is installed: `npx playwright install chromium`
-- Check the browser console for errors
-
-### "Gemini API errors"
-- Verify your `GOOGLE_CLOUD_PROJECT` in `.env`
-- Ensure Vertex AI is enabled in your GCP project
-- Check the GCP proof endpoint: http://localhost:8080/proof/gcp
-
-### "Browser not opening"
-- For CDP mode, ensure Chrome is running with `--remote-debugging-port=9222`
-- Check that `USE_CDP=true` is set in `.env`
+```
+universal-workflow-agent/
+├── deploy.sh                 # Main deployment automation script
+├── backend/                 # Express + Node.js backend
+│   ├── deploy.sh          # Backend-specific deployment
+│   ├── Dockerfile          # Cloud Run container definition
+│   └── src/
+│       ├── gemini.js      # Gemini 2.0 Flash integration
+│       ├── orchestrator.js # Agent workflow loop
+│       ├── adk_agent.js   # ADK-style agent
+│       ├── browser.js     # Playwright browser control
+│       └── server.js      # Express API server
+├── frontend/               # React + Vite frontend
+│   ├── src/
+│   │   └── App.tsx       # Main React application
+│   └── vite.config.ts
+└── README.md               # This file
+```
 
 ---
 
-## License
+## 🔧 Key Technical Decisions
+
+1. **Vision-Based Approach**: Instead of parsing DOM, we use Gemini to "see" screenshots - works on any website regardless of framework
+
+2. **Playwright for Browser Control**: Robust browser automation that works in containers
+
+3. **Cloud Run for Backend**: Auto-scaling containerized backend with zero infrastructure management
+
+4. **Session Persistence**: Firestore stores session history for recovery and audit trails
+
+---
+
+## 📜 License
 
 Apache 2.0
