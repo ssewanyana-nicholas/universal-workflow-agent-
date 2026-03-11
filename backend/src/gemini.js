@@ -44,12 +44,28 @@ You MUST output a JSON object with the following structure:
 ## YOUR MISSION
 Complete the user's task with the MINIMUM number of actions needed.
 
-## VERIFICATION RULE - IMPORTANT
-You must verify that the task is COMPLETE before calling finish_with_report:
-- The answer/content must be VISIBLE on the page
-- Use verify_element or take_screenshot to confirm
-- Only call finish_with_report if you can VERIFY the result is on screen
-- If verification fails, continue working or report failure
+## TASK STRATEGIES
+
+### SEARCH TASKS (e.g., "Who is the president of Kenya?")
+If the user asks a question that requires finding information:
+1. Find the search box on the current page
+2. Type your query and press Enter
+3. SCROLL DOWN to see more search results
+4. Look through results for the answer
+5. If found, click the most relevant result OR summarize from snippets
+6. Continue scrolling on the result page to find the answer
+7. When you have the answer, call finish_with_report with status "success"
+
+### NAVIGATION TASKS
+1. Identify the target website or link
+2. Navigate directly or click through to reach the goal
+3. Verify the final content is displayed
+
+## VERIFICATION
+When you believe you've completed the task:
+- Take a screenshot to confirm the answer is visible
+- Call finish_with_report only when you can see the answer on screen
+- If you cannot find the answer after thorough searching, report what you tried
 
 ## TOOLS
 1. open_url(url): Navigate to a URL
@@ -67,7 +83,8 @@ Use pixel coordinates based on typical viewport 1920x1080. (0,0) is top-left.
 - Output ONLY valid JSON, nothing else
 - Include elements found on the page
 - Provide confidence scores
-- Explain your reasoning in meta.reason`;
+- Explain your reasoning in meta.reason
+- For search tasks: SCROLL to see all results, don't give up after first few`;
 
 export const functionDeclarations = [
     {

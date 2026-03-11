@@ -238,18 +238,12 @@ export const tools = {
         return { ok: true, action: 'drag_and_drop', from_x, from_y, to_x, to_y };
     },
 
-    // Open URL
+    // Open URL - always use existing page
     open_url: async (p, { url, new_tab }) => {
         const page = await getPage();
-        if (new_tab) {
-            const ctx = await getContext();
-            const newPage = await ctx.newPage();
-            await newPage.goto(url, { waitUntil: 'networkidle' });
-            return { ok: true, action: 'open_url', url, new_tab: true };
-        } else {
-            await page.goto(url, { waitUntil: 'networkidle' });
-            return { ok: true, action: 'open_url', url, new_tab: false };
-        }
+        // Always use existing page, ignore new_tab parameter
+        await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
+        return { ok: true, action: 'open_url', url, new_tab: false };
     },
 
     // Switch tab

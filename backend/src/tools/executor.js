@@ -261,7 +261,7 @@ function parseTextToolCalls(text) {
   // open_url
   match = text.match(/open_url\s*\(\s*['"]([^'"]+)['"]\s*(?:,\s*(\w+))?\s*\)/);
   if (match) {
-    toolCalls.push({ name: 'open_url', args: { url: match[1], new_tab: match[2] === 'true' } });
+    toolCalls.push({ name: 'open_url', args: { url: match[1], new_tab: false } }); // Always use existing tab
   }
 
   // click

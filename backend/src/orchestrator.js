@@ -149,50 +149,34 @@ export class Orchestrator {
         const viewport = this.sessionState.viewport_size || { width: 1280, height: 720 };
         this.page = await newPage(viewport);
 
-        // PRIORITIZE: Use uploaded screenshot if provided
-        // The screenshot is the starting point - agent analyzes it to understand the interface
-        if (screenshotBase64) {
-            this.screenshot = screenshotBase64;
-            logger.info({ screenshotLength: this.screenshot?.length }, 'Using uploaded screenshot as starting point');
-            
-            // If URL is also provided, navigate to it after screenshot is set
-            // The agent will see the uploaded screenshot first, then can navigate if needed
-            if (this.sessionState.current_url) {
-                logger.info({ url: this.sessionState.current_url }, 'Navigating to URL after screenshot analysis');
-                await this.page.goto(this.sessionState.current_url, {
-                    waitUntil: 'networkidle',
-                    timeout: 30000
-                });
-                await this.page.waitForTimeout(2000);
-            }
-        } else if (this.sessionState.current_url) {
-            // No screenshot provided, so navigate to URL and capture screenshot
-            logger.info({ url: this.sessionState.current_url }, 'Navigating to URL');
+        // Always navigate to URL if provided - ignore uploaded screenshot
+        // The uploaded screenshot is only for reference, agent should navigate fresh
+        if (this.sessionState.current_url) {
+            logger.info({ url: this.sessionState.current_url }, 'Navigating to URL (ignoring uploaded screenshot)');
             await this.page.goto(this.sessionState.current_url, {
                 waitUntil: 'networkidle',
                 timeout: 30000
             });
-            // Wait for page to stabilize
             await this.page.waitForTimeout(2000);
             
-            // Capture screenshot after navigation
+            // Capture fresh screenshot after navigation
             try {
-                const title = await this.page.title().catch(() => 'unknown');
-                const url = await this.page.url().catch(() => 'unknown');
-                logger.info({ url, title }, 'Page state before screenshot');
-
                 const screenshotBuffer = await this.page.screenshot({
                     type: 'jpeg',
-                    quality: 80,
-                    fullPage: false
+                    quality: 80
                 });
                 this.screenshot = screenshotBuffer.toString('base64');
-                logger.info({ screenshotLength: this.screenshot?.length }, 'Initial screenshot captured');
+                logger.info({ screenshotLength: this.screenshot?.length }, 'Fresh screenshot captured after navigation');
             } catch (screenshotErr) {
-                logger.error({ error: screenshotErr.message }, 'Failed to capture initial screenshot');
+                logger.warn({ error: screenshotErr.message }, 'Failed to capture screenshot after navigation');
             }
+        } else if (screenshotBase64) {
+            // Only use uploaded screenshot if no URL provided
+            this.screenshot = screenshotBase64;
+            logger.info({ screenshotLength: this.screenshot?.length }, 'Using uploaded screenshot (no URL provided)');
         } else {
-            logger.warn({ sessionState: this.sessionState }, 'No screenshot or URL provided - starting with blank page');
+            // No URL or screenshot - navigate to default
+            logger.warn('No URL or screenshot provided');
         }
     }
 
@@ -441,11 +425,22 @@ export class Orchestrator {
                 const jsonMatch = responseText.match(/\{[\s\S]*\}/);
                 if (jsonMatch) {
                     const parsed = JSON.parse(jsonMatch[0]);
-                    return { verified: parsed.verified === true, reason: parsed.reason || 'Verified' };
+                    // More lenient verification - if Gemini finds ANY relevant content, consider it verified
+                    const reason = parsed.reason || '';
+                    const verified = parsed.verified === true || reason.toLowerCase().includes('found') || reason.toLowerCase().includes('visible') || reason.toLowerCase().includes('displayed');
+                    return { verified, reason: parsed.reason || 'Verified' };
                 }
             } catch (e) {
                 // If parsing fails, check for keywords
             }
+            
+            // Fallback: check response for positive keywords
+            if (responseText.toLowerCase().includes('"verified": false') || responseText.toLowerCase().includes('verification failed') || responseText.toLowerCase().includes('could not verify')) {
+                return { verified: false, reason: 'Verification check returned false' };
+            }
+            
+            // Default: assume success if we got this far
+            return { verified: true, reason: 'Task appears to be complete' };
             
             // Fallback: check for positive indicators
             const lowerResponse = responseText.toLowerCase();

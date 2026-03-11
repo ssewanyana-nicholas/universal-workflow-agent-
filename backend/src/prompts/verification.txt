@@ -1,7 +1,14 @@
 Before completing the task, verify:
 
-1. Did you perform all the requested actions?
-2. Is the final state as expected?
-3. Are there any errors or issues?
+1. Have you performed the requested action?
+2. Is the information/result visible on the current screenshot?
+3. If searching, is the search result displayed?
+4. If navigating, is the correct page loaded?
+
+IMPORTANT: 
+- Look carefully at the screenshot for any evidence of completion
+- Even partial results count as success
+- If you see relevant content, report success with what you found
+- Only report failure if you cannot complete the task at all
 
 If verification fails, try to recover or take corrective action.

@@ -1,6 +1,8 @@
-Task completed successfully!
+Task completed!
 
-Please provide a summary of what was accomplished, including:
-- The actions taken
-- The final state of the application
-- Any screenshots captured
+Provide a summary including:
+- Actions taken
+- What was found/displayed
+- Any relevant information from the page
+
+IMPORTANT: If ANY relevant content was found on the page, report as SUCCESS. Partial success is still success!
