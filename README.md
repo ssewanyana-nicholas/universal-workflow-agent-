@@ -1,8 +1,15 @@
 # UI Navigator 🤖
 
-**Visual UI Understanding & Interaction Agent**
+**Your AI Hands on Screen**
 
 A powerful AI agent that becomes your hands on screen. It observes the browser display using Gemini multimodal vision, interprets visual elements without relying on DOM access, and performs actions based on user intent.
+
+---
+
+## 👤 Developer
+
+- **GitHub**: https://github.com/ssewanyana-nicholas
+- **GDG Profile**: https://gdg.community.dev/u/mjuu9y/#/about
 
 ---
 
@@ -36,7 +43,7 @@ UI Navigator is a Visual UI Understanding & Interaction Agent that uses Gemini 2
 - **Backend API**: https://workflow-agent-backend-608289224046.us-central1.run.app
 - **Health Check**: https://workflow-agent-backend-608289224046.us-central1.run.app/health
 
-**Automated Deployment Script:**
+**Proof of Google Cloud Deployment:**
 The project includes a [`deploy.sh`](deploy.sh) script that automates the entire deployment process:
 
 ```bash
@@ -50,6 +57,21 @@ The script:
 3. Syncs frontend to Cloud Storage bucket
 4. Configures static website hosting
 5. Sets proper IAM permissions for public access
+
+**Code Proof - Google Cloud APIs:**
+See the Gemini integration code that calls Vertex AI:
+- 📄 [`backend/src/gemini.js`](backend/src/gemini.js) - Vertex AI API calls with Gemini 2.0 Flash
+- 📄 [`backend/src/util/storage.js`](backend/src/util/storage.js) - Cloud Storage API for screenshots
+- 📄 [`backend/src/util/state.js`](backend/src/util/state.js) - Firestore API for session storage
+
+**Example API call in code:**
+```javascript
+const vertexAI = new VertexAI({ project: config.projectId, location: config.location });
+const generativeModel = vertexAI.preview.getGenerativeModel({
+    model: 'gemini-2.0-flash',
+    systemInstruction: { role: 'system', parts: [{ text: systemInstruction }] },
+});
+```
 
 **GCP Services Used:**
 - ✅ Vertex AI (Gemini 2.0 Flash)
@@ -70,44 +92,52 @@ workflow-agent-backend   us-central1  https://workflow-agent-backend-60828922404
 ## 🏗️ Architecture Diagram
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Frontend (React + Vite)                  │
-│  ┌─────────────┐  ┌──────────────┐  ┌───────────────┐       │
-│  │   Screenshot│  │   Session    │  │    Action     │       │
-│  │    Upload   │  │    State     │  │    History    │       │
-│  └─────────────┘  └──────────────┘  └───────────────┘       │
-│         │                  │                   │            │
-│         └──────────────────┼───────────────────┘            │
-│                            │                                │
-│                     POST /agent/run                         │
-│                            │                                │
-└────────────────────────────┼────────────────────────────────┘
-                             │ HTTPS
-                             ▼
-┌─────────────────────────────────────────────────────────────┐
-│                  Backend (Express + Node.js)                │
-│                   (Deployed on Cloud Run)                   │
-│                                                             │
-│  ┌──────────────┐  ┌──────────────────┐  ┌─────────────┐    │
-│  │  Orchestrator│──│  Gemini 2.0 Flash│──│   Vision    │    │
-│  │    (Loop)    │  │    (Vertex AI)   │  │  Processing │    │
-│  └──────────────┘  └──────────────────┘  └─────────────┘    │
-│         │                                                   │
-│  ┌──────▼──────────────────────────────────────────┐        │
-│  │           Playwright Browser                    │        │
-│  │  - Headless Chrome                              │        │
-│  │  - CDP Support (control your browser)           │        │
-│  └─────────────────────────────────────────────────┘        │
-│                            │                                │
-└────────────────────────────┼────────────────────────────────┘
-                             │
-        ┌────────────────────┼────────────────────┐
-        │                    │                    │
-        ▼                    ▼                    ▼
-┌──────────────┐    ┌──────────────┐    ┌──────────────┐
-│   Vertex AI  │    │  Firestore   │    │Cloud Storage │
-│   (Gemini)   │    │  (Sessions)  │    │ (Screenshots)│
-└──────────────┘    └──────────────┘    └──────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           USER INTERFACE                                    │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                    FRONTEND (React + Vite)                          │    │
+│  │  ┌─────────────┐  ┌──────────────┐  ┌───────────────┐               │    │
+│  │  │    Task     │  │    Live      │  │    Action     │               │    │
+│  │  │   Input     │  │   Viewport   │  │   History     │               │    │
+│  │  └─────────────┘  └──────────────┘  └───────────────┘               │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      │ HTTPS
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         BACKEND (Cloud Run)                                 │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                    ORCHESTRATOR                                     │    │
+│  │  ┌──────────────┐  ┌──────────────────┐  ┌─────────────┐            │    │
+│  │  │   Session    │──│   Agent Loop     │──│   Retry     │            │    │
+│  │  │   State      │  │  (See → Act)     │  │   Logic     │            │    │
+│  │  └──────────────┘  └──────────────────┘  └─────────────┘            │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                      │                                      │
+│                    ┌─────────────────┼─────────────────┐                    │
+│                    ▼                 ▼                 ▼                    │
+│  ┌──────────────────────┐  ┌───────────────┐  ┌──────────────────┐          │
+│  │   GEMINI 2.0 FLASH   │  │   PLAYWRIGHT  │  │    TOOLS         │          │
+│  │   (Vertex AI)        │  │   Browser     │  │   EXECUTOR       │          │
+│  │                      │  │               │  │                  │          │
+│  │  • Vision Analysis   │  │  • Headless   │  │  • find_element  │          │
+│  │  • Element Detection │  │  • CDP Mode   │  │  • click         │          │
+│  │  • Action Planning   │  │  • Screenshot │  │  • type_text     │          │
+│  │  • JSON Output       │  │               │  │  • scroll        │          │
+│  └──────────────────────┘  └───────────────┘  │  • finish        │          │
+│                                               └──────────────────┘          │
+└─────────────────────────────────────────────────────────────────────────────┘
+                    │                       │                   │
+                    │                       │                   │
+                    ▼                       ▼                   ▼
+        ┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐
+        │    VERTEX AI     │    │   FIRESTORE      │    │  CLOUD STORAGE   │
+        │  (Gemini 2.0)    │    │   (Sessions)     │    │  (Screenshots)   │
+        └──────────────────┘    └──────────────────┘    └──────────────────┘
+
 ```
 
 ---
@@ -210,6 +240,68 @@ gcloud run deploy workflow-agent-backend \
 cd frontend
 npm run build
 gsutil -m rsync -R dist gs://your-frontend-bucket
+```
+
+---
+
+## 🧪 Reproducible Testing Instructions
+
+### Option 1: Test Live Demo (No Setup Required)
+
+1. Open the frontend: https://storage.googleapis.com/my-universal-workflow-agent-frontend/index.html
+2. Enter a URL (e.g., https://google.com)
+3. Enter a task (e.g., "Search for the president of Kenya")
+4. Click "Start Agent"
+5. Watch the agent navigate and complete the task in real-time
+
+### Option 2: Test API Directly
+
+```bash
+# Test health endpoint
+curl https://workflow-agent-backend-608289224046.us-central1.run.app/health
+
+# Test GCP proof endpoint
+curl https://workflow-agent-backend-608289224046.us-central1.run.app/proof/gcp
+
+# Test agent run endpoint
+curl -X POST https://workflow-agent-backend-608289224046.us-central1.run.app/agent/run \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://google.com",
+    "task": "Search for AI",
+    "viewport": {"width": 1280, "height": 720}
+  }'
+```
+
+### Option 3: Run Locally
+
+```bash
+# 1. Clone the repo
+git clone https://github.com/ssewanyana-nicholas/universal-workflow-agent-
+cd universal-workflow-agent-
+
+# 2. Configure backend
+cp backend/.env.sample backend/.env
+# Edit with your GCP project settings
+
+# 3. Install dependencies
+cd backend && npm install
+cd ../frontend && npm install
+
+# 4. Start backend (terminal 1)
+cd backend && npm start
+
+# 5. Start frontend (terminal 2)
+cd frontend && npm run dev
+
+# 6. Open http://localhost:3000
+```
+
+### Option 4: Deploy to Your GCP
+
+```bash
+# One-command deployment
+./deploy.sh
 ```
 
 ---
