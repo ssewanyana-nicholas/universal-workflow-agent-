@@ -91,6 +91,8 @@ workflow-agent-backend   us-central1  https://workflow-agent-backend-60828922404
 
 ## 🏗️ Architecture Diagram
 
+![UI Navigator Architecture](architecture-diagram.png)
+
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           USER INTERFACE                                    │
